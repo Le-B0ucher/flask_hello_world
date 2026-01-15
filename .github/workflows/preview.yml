@@ -50,3 +50,7 @@ jobs:
         with:
           name: preview-url
           path: PREVIEW_URL.txt
+
+      - name: Keep preview alive 300s
+        run: sleep 300
+

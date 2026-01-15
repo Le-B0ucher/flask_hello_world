@@ -13,3 +13,40 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t flask-preview .
+
+      - name: Run Flask container
+        run: |
+          docker run -d --rm -p 5000:5000 --name flask_app flask-preview
+          sleep 3
+          curl http://127.0.0.1:5000
+
+      - name: Install ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+            | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+            | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update
+          sudo apt install -y ngrok
+
+      - name: Configure ngrok
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.NGROK_AUTHTOKEN }}
+        run: ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+
+      - name: Start ngrok tunnel
+        run: |
+          nohup ngrok http 5000 > ngrok.log 2>&1 &
+          sleep 5
+
+      - name: Get ngrok public URL
+        run: |
+          URL=$(curl -s http://127.0.0.1:4040/api/tunnels \
+            | python3 -c "import sys, json; print(json.load(sys.stdin)['tunnels'][0]['public_url'])")
+          echo "$URL" > PREVIEW_URL.txt
+
+      - name: Upload artifact with URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-url
+          path: PREVIEW_URL.txt
